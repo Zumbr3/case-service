@@ -1,5 +1,5 @@
--- id gerado na aplicação (Go, uuid.NewV6()), não no banco: o contrato de eventos
--- (docs/architecture/contracts/eventos.md) exige UUID v6 em todo id do sistema
+-- Id generated in the application (Go, uuid.NewV6()), not in the database: the contract of events
+-- (docs/architecture/contracts/eventos.md) require UUID v6 in all the system
 
 CREATE TABLE cases
 (
