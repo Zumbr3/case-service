@@ -5,68 +5,89 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/Zumbr3/case-service/internal/dto"
+	domainerrors "github.com/Zumbr3/case-service/internal/errors"
 )
 
 const (
-	StatusHeld     dto.Status = "held"
-	StatusReleased dto.Status = "released"
-	StatusReversed dto.Status = "reversed"
+	StatusHeld     Status = "held"
+	StatusReleased Status = "released"
+	StatusReversed Status = "reversed"
 )
 
 const (
-	OriginManualReview dto.Origin = "manual_review"
-	OriginAutoBlock    dto.Origin = "auto_block"
+	OriginManualReview Origin = "manual_review"
+	OriginAutoBlock    Origin = "auto_block"
 )
+
+type Status string
+type Origin string
+
+type TriggeredRule struct {
+	RuleID       string  `json:"ruleID"`
+	Name         string  `json:"name"`
+	PartialScore float64 `json:"partialScore"`
+	Weight       string  `json:"weight"`
+}
+
+// Id values are uuid.NewV6(), so they are treated as string
+type Case struct {
+	TransactionID string        `json:"transactionId"`
+	AccountID     string        `json:"accountId"`
+	Score         float64       `json:"score"`
+	Origin        Origin        `json:"origin"`
+	Status        Status        `json:"status"`
+	Triggered     TriggeredRule `json:"triggered"`
+	SLADeadline   time.Time     `json:"slaDeadline"`
+	AnalystID     string        `json:"analystId"`
+	DecisionNotes string        `json:"decisionNotes"`
+	DecidedAt     time.Time     `json:"decidedAt"`
+	CreatedAt     time.Time     `json:"createdAt"`
+}
 
 func NewCase(transactionId, accountId, origin, status,
-	ruleID, name, weight, analystId, decisionNotes string,
-	score, partialScore float64, slaDeadline,
-	decisionAt, createdAt time.Time) (dto.Case, error) {
+	ruleID, name, weight string,
+	score, partialScore float64, slaDeadline, createdAt time.Time) (Case, error) {
 
 	parsedStatus, err := parseStatus(status)
 	if err != nil {
-		return dto.Case{}, err
+		return Case{}, err
 	}
 
 	parsedOrigin, err := parseOrigin(origin)
 	if err != nil {
-		return dto.Case{}, err
+		return Case{}, err
 	}
 
 	if err := validateScore(score); err != nil {
-		return dto.Case{}, err
+		return Case{}, err
 	}
 
 	if err := validateScore(partialScore); err != nil {
-		return dto.Case{}, err
+		return Case{}, err
 	}
 
 	if slaDeadline.IsZero() {
 		slog.Error("Invalid SLA deadline", "slaDeadline", slaDeadline)
-		return dto.Case{}, errors.New("slaDeadline is required")
+		return Case{}, errors.New("slaDeadline is required")
 	}
 
-	triggered := dto.TriggeredRule{
+	triggered := TriggeredRule{
 		RuleID:       ruleID,
 		Name:         name,
 		PartialScore: partialScore,
 		Weight:       weight,
 	}
 
-	return dto.NewCase(
-		transactionId,
-		accountId,
-		score,
-		parsedOrigin,
-		parsedStatus,
-		triggered,
-		slaDeadline,
-		analystId,
-		decisionNotes,
-		decisionAt,
-		createdAt,
-	), nil
+	return Case{
+		TransactionID: transactionId,
+		AccountID:     accountId,
+		Score:         score,
+		Origin:        parsedOrigin,
+		Status:        parsedStatus,
+		Triggered:     triggered,
+		SLADeadline:   slaDeadline,
+		CreatedAt:     createdAt,
+	}, nil
 }
 
 func validateScore(score float64) error {
@@ -87,11 +108,11 @@ func validateStatus(s string) error {
 	}
 }
 
-func parseStatus(s string) (dto.Status, error) {
+func parseStatus(s string) (Status, error) {
 	if err := validateStatus(s); err != nil {
 		return "", err
 	}
-	return dto.Status(s), nil
+	return Status(s), nil
 }
 
 func validateOrigin(o string) error {
@@ -104,9 +125,26 @@ func validateOrigin(o string) error {
 	}
 }
 
-func parseOrigin(o string) (dto.Origin, error) {
+func parseOrigin(o string) (Origin, error) {
 	if err := validateOrigin(o); err != nil {
 		return "", err
 	}
-	return dto.Origin(o), nil
+	return Origin(o), nil
+}
+
+func (c *Case) CanBeDecided() bool {
+	return c.Status == StatusHeld
+}
+
+func (c *Case) ApplyDecision(decision Decision, analystID, notes string, now time.Time) error {
+	if !c.CanBeDecided() {
+		slog.Error("Case already decided", "transactionId", c.TransactionID, "status", c.Status)
+		return domainerrors.ErrCaseAlreadyDecided
+	}
+
+	c.Status = decision.toStatus()
+	c.AnalystID = analystID
+	c.DecisionNotes = notes
+	c.DecidedAt = now
+	return nil
 }

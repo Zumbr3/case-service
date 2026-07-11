@@ -1,8 +1,9 @@
 package domain
 
 import (
-	"errors"
 	"log/slog"
+
+	decisionerrors "github.com/Zumbr3/case-service/internal/errors"
 )
 
 type Decision string
@@ -22,12 +23,23 @@ func ReturnDecision(val string) (Decision, error) {
 	return d, nil
 }
 
+func (d Decision) toStatus() Status {
+	switch d {
+	case decisionReleased:
+		return StatusReleased
+	case decisionReversed:
+		return StatusReversed
+	default:
+		return ""
+	}
+}
+
 func validateDecision(d Decision) error {
 	switch d {
 	case decisionReleased, decisionReversed:
 		return nil
 	default:
 		slog.Error("Invalid decision", "decision", d)
-		return errors.New("Invalid decision")
+		return decisionerrors.ErrDecisionInvalid
 	}
 }
