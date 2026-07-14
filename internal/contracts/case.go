@@ -3,7 +3,7 @@ package contracts
 import (
 	"context"
 
-	"github.com/Zumbr3/case-service/internal/models"
+	"github.com/Zumbr3/case-service/internal/adapter/repository/models"
 )
 
 type CaseRepository interface {
