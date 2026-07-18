@@ -1,0 +1,15 @@
+package contracts
+
+import (
+	"context"
+
+	"github.com/Zumbr3/case-service/internal/adapter/repository/models"
+)
+
+type CaseService interface {
+	GetAllCases(ctx context.Context) ([]*models.Case, error)
+	GetCaseByID(ctx context.Context, id string) (*models.Case, error)
+	CreateCase(ctx context.Context, c *models.Case) (*models.Case, error)
+	UpdateCase(ctx context.Context, c *models.Case) (*models.Case, error)
+	DeleteCaseByID(ctx context.Context, id string) error
+}

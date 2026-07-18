@@ -10,7 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func Router() *http.Server {
+func Router(h *handler.Handlers) *http.Server {
 	router := gin.Default()
 
 	api := router.Group("/api")
@@ -19,7 +19,11 @@ func Router() *http.Server {
 		{
 			cases := v1.Group("/cases")
 			{
-				cases.GET("/", handler.GetCase)
+				cases.GET("/:id", h.Case.GetCase)
+				cases.GET("/", h.Case.GetAllCases)
+				cases.POST("/", h.Case.CreateCase)
+				cases.PUT("/:id", h.Case.UpdateCase)
+				cases.DELETE("/:id", h.Case.DeleteCaseByID)
 			}
 		}
 	}
